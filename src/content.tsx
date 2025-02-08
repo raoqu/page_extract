@@ -6,6 +6,8 @@ interface TreeNode {
   element: Element;
   tagName: string;
   children: TreeNode[];
+  ownText: string;
+  multiChildren: boolean;
 }
 
 function isElementVisible(element: Element): boolean {
@@ -46,11 +48,31 @@ function buildTree(element: Element = document.body): TreeNode | null {
   const tagName = element.tagName.toLowerCase();
   const isTargetElement = ['article', 'section', 'div'].includes(tagName);
   
+  // Helper function to get text content excluding TreeNode elements
+  const getOwnText = (el: Element): string => {
+    let text = '';
+    el.childNodes.forEach(node => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        const trimmed = node.textContent?.trim() || '';
+        if (trimmed) text += ' ' + trimmed;
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
+        const childEl = node as Element;
+        // Only include text from non-target elements
+        if (!['article', 'section', 'div'].includes(childEl.tagName.toLowerCase())) {
+          text += ' ' + getOwnText(childEl);
+        }
+      }
+    });
+    return text.trim();
+  };
+
   if (isTargetElement && meetsRequirements(element)) {
     const node: TreeNode = {
       element,
       tagName,
-      children: []
+      children: [],
+      ownText: getOwnText(element),
+      multiChildren: false
     };
     
     // Process children
@@ -60,6 +82,9 @@ function buildTree(element: Element = document.body): TreeNode | null {
         node.children.push(childTree);
       }
     });
+    
+    // Set multiChildren after processing all children
+    node.multiChildren = node.children.length > 1;
     
     return node;
   }
@@ -73,11 +98,17 @@ function buildTree(element: Element = document.body): TreeNode | null {
     }
   });
   
-  return children.length > 0 ? {
-    element,
-    tagName,
-    children
-  } : null;
+  if (children.length > 0) {
+    return {
+      element,
+      tagName,
+      children,
+      ownText: getOwnText(element),
+      multiChildren: children.length > 1
+    };
+  }
+  
+  return null;
 }
 
 function TreeView({ node, level = 0 }: { node: TreeNode; level?: number }) {
@@ -110,7 +141,12 @@ function TreeView({ node, level = 0 }: { node: TreeNode; level?: number }) {
         >
           {node.children.length > 0 ? (expanded ? '▼' : '▶') : '•'}
         </span>
-        <span>{node.tagName}</span>
+        <span style={{
+          fontWeight: node.ownText ? 'bold' : 'normal',
+          color: node.multiChildren ? 'red' : 'inherit'
+        }}>
+          {node.tagName}
+        </span>
         <button className="select-button" onClick={handleSelect}>☆</button>
       </div>
       {expanded && node.children.map((child, index) => (

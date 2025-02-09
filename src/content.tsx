@@ -11,14 +11,11 @@ interface TreeNode {
 }
 
 function isElementVisible(element: Element): boolean {
-  const rect = element.getBoundingClientRect();
-  const computedStyle = window.getComputedStyle(element);
-  
-  return rect.width > 0 && 
-         rect.height > 0 && 
-         computedStyle.display !== 'none' && 
-         computedStyle.visibility !== 'hidden' &&
-         computedStyle.opacity !== '0';
+  const style = window.getComputedStyle(element);
+  return style.display !== 'none' && 
+         style.visibility !== 'hidden' && 
+         style.opacity !== '0' &&
+         element.getBoundingClientRect().height > 0;
 }
 
 function meetsRequirements(element: Element): boolean {
@@ -27,17 +24,15 @@ function meetsRequirements(element: Element): boolean {
   const viewportHeight = window.innerHeight;
   
   // Size requirements
-  const meetsSize = rect.width >= 300 && rect.height >= 200;
+  const meetsSize = rect.width >= 100 && rect.height >= 100;
   
-  // X center line requirement (covers 1/2 of page width)
-  const elementCenter = rect.left + rect.width / 2;
-  const meetsXCenter = Math.abs(elementCenter - viewportWidth / 2) < viewportWidth / 4;
+  // X-center position requirement (within middle 80% of viewport)
+  const leftBound = viewportWidth * 0.1;
+  const rightBound = viewportWidth * 0.9;
+  const meetsXCenter = rect.left >= leftBound && rect.right <= rightBound;
   
-  // Y position requirement (top 1/3 or bottom 1/3)
-  const elementMiddle = rect.top + rect.height / 2;
-  const inTopThird = elementMiddle < viewportHeight / 3;
-  const inBottomThird = elementMiddle > (viewportHeight * 2) / 3;
-  const meetsYPosition = inTopThird || inBottomThird;
+  // Y position requirement (within viewport)
+  const meetsYPosition = rect.top >= 0 && rect.bottom <= viewportHeight;
   
   return meetsSize && meetsXCenter && meetsYPosition && isElementVisible(element);
 }
@@ -113,20 +108,27 @@ function buildTree(element: Element = document.body): TreeNode | null {
 
 function TreeView({ node, level = 0 }: { node: TreeNode; level?: number }) {
   const [expanded, setExpanded] = React.useState(true);
+  const [isClicked, setIsClicked] = React.useState(false);
+  const [isSelected, setIsSelected] = React.useState(false);
   
   const handleClick = () => {
-    // Remove previous highlights
-    document.querySelectorAll('.page-extract-highlight').forEach(el => 
-      el.classList.remove('page-extract-highlight')
-    );
+    // Remove previous highlights and underlines
+    document.querySelectorAll('.page-extract-highlight').forEach(el => {
+      el.classList.remove('page-extract-highlight');
+    });
+    document.querySelectorAll('.tree-item-clicked').forEach(el => {
+      el.classList.remove('tree-item-clicked');
+    });
     
     // Add highlight to current element
     node.element.classList.add('page-extract-highlight');
+    setIsClicked(true);
   };
   
   const handleSelect = (e: React.MouseEvent) => {
     e.stopPropagation();
     node.element.classList.toggle('page-extract-selected');
+    setIsSelected(!isSelected);
   };
   
   return (
@@ -141,13 +143,18 @@ function TreeView({ node, level = 0 }: { node: TreeNode; level?: number }) {
         >
           {node.children.length > 0 ? (expanded ? '▼' : '▶') : '•'}
         </span>
-        <span style={{
+        <span className={isClicked ? 'tree-item-clicked' : ''} style={{
           fontWeight: node.ownText ? 'bold' : 'normal',
           color: node.multiChildren ? 'red' : 'inherit'
         }}>
           {node.tagName}
         </span>
-        <button className="select-button" onClick={handleSelect}>☆</button>
+        <button 
+          className={`select-button ${isSelected ? 'select-button-selected' : ''}`} 
+          onClick={handleSelect}
+        >
+          {isSelected ? '★' : '☆'}
+        </button>
       </div>
       {expanded && node.children.map((child, index) => (
         <TreeView key={index} node={child} level={level + 1} />
@@ -160,21 +167,43 @@ function App() {
   const [tree, setTree] = React.useState<TreeNode | null>(null);
   
   React.useEffect(() => {
-    const newTree = buildTree();
-    setTree(newTree);
+    const tree = buildTree();
+    setTree(tree);
   }, []);
   
   if (!tree) return null;
   
   return (
-    <div className="tree-container">
+    <div className="page-extract-app">
       <TreeView node={tree} />
     </div>
   );
 }
 
-// Create container and render app
-const container = document.createElement('div');
-document.body.appendChild(container);
-const root = ReactDOM.createRoot(container);
-root.render(<App />);
+// Only create and render when receiving message from background script
+chrome.runtime.onMessage.addListener((message: { type: string }, _sender, sendResponse) => {
+  console.log('Received message:', message.type); // Debug log
+
+  if (message.type === 'CHECK_MOUNT') {
+    sendResponse(true);
+    return true;
+  }
+  
+  if (message.type === 'MOUNT_APP') {
+    console.log('Mounting app...'); // Debug log
+    // Check if app is already mounted
+    if (!document.querySelector('.page-extract-app')) {
+      // Create a floating container
+      const floatContainer = document.createElement('div');
+      floatContainer.className = 'page-extract-float-container';
+      document.body.appendChild(floatContainer);
+
+      const root = ReactDOM.createRoot(floatContainer);
+      root.render(<App />);
+      console.log('App mounted'); // Debug log
+    } else {
+      console.log('App already mounted'); // Debug log
+    }
+  }
+  return true;
+});

@@ -1,10 +1,29 @@
 .page-extract-highlight {
-  outline: 2px solid #ff4081 !important;
-  outline-offset: -2px !important;
+  outline: 2px solid #4285f4 !important;
 }
 
 .page-extract-selected {
-  background-color: rgba(173, 216, 230, 0.3) !important;
+  background-color: rgba(66, 133, 244, 0.2) !important;
+}
+
+.page-extract-float-container {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 999999;
+  pointer-events: none; /* Allow clicking through the container */
+}
+
+.page-extract-app {
+  width: 300px;
+  max-height: 500px;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 10px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  pointer-events: auto; /* Re-enable pointer events for the app */
 }
 
 .tree-container {
@@ -22,37 +41,45 @@
 }
 
 .tree-node {
-  margin-left: 20px;
+  margin-left: 15px;
 }
 
 .node-content {
   display: flex;
   align-items: center;
-  padding: 4px 0;
+  gap: 5px;
+  padding: 3px 0;
   cursor: pointer;
+}
+
+.expand-icon {
+  cursor: pointer;
+  width: 20px;
+  display: inline-block;
+}
+
+.select-button {
+  margin-left: auto;
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 2px 5px;
+  font-size: 16px;
+  transition: color 0.2s ease;
+}
+
+.select-button-selected {
+  color: #4285f4;
+}
+
+.tree-item-clicked {
+  text-decoration: underline;
+  text-decoration-color: #4285f4;
+  text-decoration-thickness: 2px;
 }
 
 .node-content:hover {
   background: #f5f5f5;
-}
-
-.expand-icon {
-  margin-right: 8px;
-  width: 16px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.select-button {
-  margin-left: 8px;
-  padding: 2px 6px;
-  background: #e0e0e0;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
 .select-button:hover {
